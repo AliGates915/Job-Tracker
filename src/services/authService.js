@@ -23,7 +23,6 @@ export const authService = {
     return data;
   },
 
-  // ✅ Add the register method
   async register(name, email, password) {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
@@ -37,7 +36,6 @@ export const authService = {
       throw new Error(data.message || 'Registration failed');
     }
 
-    // Optional: auto-login after registration
     if (data.token) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
@@ -52,10 +50,15 @@ export const authService = {
   },
 
   getToken() {
-
-      // console.log('Token:', localStorage.getItem('token'));
+    // FIXED: Return the token, not the user object
     return localStorage.getItem('token');
   },
+  
+  getUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  },
+  
   isAuthenticated() {
     return !!this.getToken();
   },
