@@ -49,9 +49,10 @@ export const authService = {
     localStorage.removeItem('user');
   },
 
-  getToken() {
-    // FIXED: Return the token, not the user object
-    return localStorage.getItem('token');
+ getToken() {
+    const token = localStorage.getItem('token');
+    console.log('Retrieved token:', token ? `${token.substring(0, 20)}...` : 'No token'); // Debug log
+    return token;
   },
   
   getUser() {

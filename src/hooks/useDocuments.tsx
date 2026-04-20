@@ -1,75 +1,126 @@
-import { useState, useEffect, useCallback } from "react";
-import { documentsApi } from "../services/documents";
+// frontend/src/hooks/useDocuments.ts
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export interface Document {
   _id: string;
   userId: string;
+  applicationId?: string;
   fileName: string;
   fileUrl: string;
-  fileType: "resume" | "cover_letter";
+  publicId: string;
+  fileType: 'resume' | 'cover_letter';
+  fileSize?: number;
+  mimeType?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export const useDocuments = (userId: string | null) => {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDocuments = useCallback(async () => {
-    if (!userId) {
-      console.log("No userId provided, skipping fetch");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data } = await documentsApi.getAll(userId);
-      setDocuments(data);
-      setError(null);
-    } catch (err: any) {
-      console.error("Fetch error:", err);
-      setError(err.response?.data?.message || "Failed to load documents");
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+  // frontend/src/hooks/useDocuments.ts
+const fetchDocuments = async () => {
+  if (!userId) {
+    setDocuments([]);
+    setLoading(false);
+    return;
+  }
 
-  const uploadDocument = async (file: File, fileType: "resume" | "cover_letter") => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    console.log('Token being sent:', token ? `${token.substring(0, 20)}...` : 'No token');
+    
+    const response = await axios.get(`${API_URL}/api/documents?userId=${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('Response:', response.data);
+    
+    const documentsData = response.data.data || response.data;
+    setDocuments(Array.isArray(documentsData) ? documentsData : []);
+    setError(null);
+  } catch (err: any) {
+    console.error('Error fetching documents:', err);
+    console.error('Error response:', err.response);
+    setError(err.response?.data?.message || 'Failed to load documents');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const uploadDocument = async (file: File, fileType: 'resume' | 'cover_letter') => {
     if (!userId) {
-      return { success: false, error: "User not authenticated" };
+      return { success: false, error: 'User not authenticated' };
     }
-    
+
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("fileType", fileType);
-    formData.append("userId", userId);
-    
+    formData.append('file', file);
+    formData.append('fileType', fileType);
+    formData.append('userId', userId);
+
     try {
-      const { data } = await documentsApi.upload(formData);
-      setDocuments((prev) => [data.data, ...prev]);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_URL}/api/documents/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      await fetchDocuments(); // Refresh the list
       return { success: true };
     } catch (err: any) {
-      console.error("Upload error:", err);
-      return { success: false, error: err.response?.data?.message || "Upload failed" };
+      console.error('Error uploading document:', err);
+      return {
+        success: false,
+        error: err.response?.data?.message || 'Upload failed'
+      };
     }
   };
 
-  const deleteDocument = async (id: string) => {
+  const deleteDocument = async (documentId: string) => {
+    if (!userId) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
     try {
-      await documentsApi.delete(id);
-      setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/api/documents/${documentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      await fetchDocuments(); // Refresh the list
       return { success: true };
     } catch (err: any) {
-      console.error("Delete error:", err);
-      return { success: false, error: err.response?.data?.message || "Delete failed" };
+      console.error('Error deleting document:', err);
+      return {
+        success: false,
+        error: err.response?.data?.message || 'Delete failed'
+      };
     }
   };
 
   useEffect(() => {
-    if (userId) {
-      fetchDocuments();
-    }
-  }, [userId, fetchDocuments]);
+    fetchDocuments();
+  }, [userId]);
 
-  return { documents, loading, error, uploadDocument, deleteDocument, refetch: fetchDocuments };
+  return {
+    documents,
+    loading,
+    error,
+    uploadDocument,
+    deleteDocument,
+    refreshDocuments: fetchDocuments,
+  };
 };

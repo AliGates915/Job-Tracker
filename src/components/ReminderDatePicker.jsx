@@ -5,7 +5,7 @@ const ReminderDatePicker = ({ value, onChange, status, required }) => {
   const [showPicker, setShowPicker] = useState(false);
   
   // Only show reminder date picker for specific statuses
-  const shouldShowReminder = ["Screening", "Interview", "Offer"].includes(status);
+  const shouldShowReminder = ["Screening", "Interview", "Offer", "Applied"].includes(status);
   
   if (!shouldShowReminder) {
     return null;

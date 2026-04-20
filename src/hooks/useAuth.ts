@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 interface User {
   _id: string;
+  token: string;
   email: string;
   fullName: string;
   createdAt: string;
@@ -13,9 +14,12 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
+    const tokenStr = localStorage.getItem("token");
+    setToken(tokenStr);
     console.log("User from localStorage:", userStr);
     
     if (userStr) {
@@ -34,5 +38,5 @@ export const useAuth = () => {
     setLoading(false);
   }, []);
 
-  return { userId, user, isAuthenticated, loading };
+  return { userId, user, isAuthenticated, loading, token };
 };

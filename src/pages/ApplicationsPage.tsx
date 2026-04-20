@@ -21,16 +21,20 @@ const ApplicationsPage = () => {
   }, []);
 
   const loadApplications = async () => {
-    try {
-      setLoading(true);
-      const data = await applicationService.getAll();
-      setApplications(data);
-    } catch (error) {
-      console.error("Failed to load applications:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const data = await applicationService.getAll();
+    // Ensure data is an array
+    setApplications(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("Failed to load applications:", error);
+    setApplications([]); // Set to empty array on error
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const handleSave = async (formData) => {
     try {
@@ -172,9 +176,6 @@ const ApplicationsPage = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="View">
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </button>
                           <button
                             className="p-1.5 rounded-lg hover:bg-muted transition-colors"
                             title="Edit"
@@ -205,6 +206,7 @@ const ApplicationsPage = () => {
         onClose={() => { setModalOpen(false); setEditApp(null); }}
         application={editApp}
         onSave={handleSave}
+        userId={null} // Pass userId if needed for document uploads
       />
     </DashboardLayout>
   );

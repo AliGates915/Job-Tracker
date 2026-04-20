@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Upload, Trash2, FileText } from "lucide-react";
-import ReminderDatePicker from "./ReminderDatePicker";
+import ReminderDatePicker from "../components/ReminderDatePicker";
 import axios from "axios";
 
 const emptyForm = {
@@ -12,6 +12,8 @@ const emptyForm = {
   status: "Applied",
   notes: "",
   reminderDate: "",
+  resumeDocumentId: null,
+  coverLetterDocumentId: null
 };
 
 const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
@@ -19,8 +21,7 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
   const [saving, setSaving] = useState(false);
   const [documents, setDocuments] = useState({ resume: null, cover_letter: null });
   const [existingDocs, setExistingDocs] = useState({ resume: null, cover_letter: null });
-  const [uploading, setUploading] = useState({ resume: false, cover_letter: false });
-  
+
   useEffect(() => {
     if (application) {
       setForm({
@@ -32,8 +33,10 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
         status: application.status || "Applied",
         notes: application.notes || "",
         reminderDate: application.reminderDate || "",
+        resumeDocumentId: application.resumeDocumentId?._id || null,
+        coverLetterDocumentId: application.coverLetterDocumentId?._id || null,
       });
-      
+
       // Load existing documents
       if (application.resumeDocumentId) {
         setExistingDocs(prev => ({ ...prev, resume: application.resumeDocumentId }));
@@ -47,57 +50,75 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
     }
     setDocuments({ resume: null, cover_letter: null });
   }, [application, open]);
-  
+
+
   if (!open) return null;
-  
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-  
-  const handleFileChange = async (type, file) => {
-    if (!file) return;
-    
-    setUploading(prev => ({ ...prev, [type]: true }));
-    
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("fileType", type);
-    formData.append("userId", userId);
-    
-    if (application?._id) {
-      formData.append("applicationId", application._id);
-    }
-    
-    try {
-      const response = await axios.post("/api/documents/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      
-      setDocuments(prev => ({ ...prev, [type]: response.data.data }));
-      setExistingDocs(prev => ({ ...prev, [type]: response.data.data }));
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Failed to upload document");
-    } finally {
-      setUploading(prev => ({ ...prev, [type]: false }));
-    }
-  };
-  
-  const handleDeleteDocument = async (type, docId) => {
-    if (!docId) return;
-    
-    if (confirm("Are you sure you want to delete this document?")) {
-      try {
-        await axios.delete(`/api/documents/${docId}`);
-        setExistingDocs(prev => ({ ...prev, [type]: null }));
-        setDocuments(prev => ({ ...prev, [type]: null }));
-      } catch (error) {
-        console.error("Delete error:", error);
-        alert("Failed to delete document");
-      }
-    }
-  };
-  
+
+  // // ApplicationModal.tsx
+  // const handleFileChange = async (type, file) => {
+  //   if (!file) return;
+
+  //   setUploading(prev => ({ ...prev, [type]: true }));
+
+  //   const formData = new FormData();
+  //   formData.append("file", file);
+  //   formData.append("fileType", type);
+  //   formData.append("userId", userId);
+
+  //   if (application?._id) {
+  //     formData.append("applicationId", application._id);
+  //   }
+
+  //   try {
+  //     // Use full URL or ensure proxy is configured
+  //     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  //     const response = await axios.post(
+  //       `${API_URL}/api/documents/upload`,
+  //       formData,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${localStorage.getItem("token")}`
+  //         }
+  //       }
+  //     );
+
+  //     setDocuments(prev => ({ ...prev, [type]: response.data.data }));
+  //     setExistingDocs(prev => ({ ...prev, [type]: response.data.data }));
+
+  //     // If this is a new application, store the document IDs to send with the application
+  //     if (!application?._id) {
+  //       setForm(prev => ({
+  //         ...prev,
+  //         [`${type}DocumentId`]: response.data.data._id
+  //       }));
+  //     }
+  //   } catch (error) {
+  //     console.error("Upload error:", error);
+  //     alert("Failed to upload document");
+  //   } finally {
+  //     setUploading(prev => ({ ...prev, [type]: false }));
+  //   }
+  // };
+
+  // const handleDeleteDocument = async (type, docId) => {
+  //   if (!docId) return;
+
+  //   if (confirm("Are you sure you want to delete this document?")) {
+  //     try {
+  //       await axios.delete(`/api/documents/${docId}`);
+  //       setExistingDocs(prev => ({ ...prev, [type]: null }));
+  //       setDocuments(prev => ({ ...prev, [type]: null }));
+  //     } catch (error) {
+  //       console.error("Delete error:", error);
+  //       alert("Failed to delete document");
+  //     }
+  //   }
+  // };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -107,7 +128,7 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
       setSaving(false);
     }
   };
-  
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} />
@@ -120,7 +141,7 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
             <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4">
             {/* Basic Fields */}
@@ -146,7 +167,7 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
                 />
               </div>
             ))}
-            
+
             {/* Status Selection */}
             <div>
               <label className="block text-sm font-medium text-card-foreground mb-1.5">Status</label>
@@ -161,15 +182,15 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
                 ))}
               </select>
             </div>
-            
+
             {/* Reminder Date Picker - Only shows for Screening, Interview, Offer */}
             <ReminderDatePicker
               value={form.reminderDate}
               onChange={(date) => setForm({ ...form, reminderDate: date })}
               status={form.status}
-              required={["Screening", "Interview", "Offer"].includes(form.status)}
+              required={["Screening", "Interview", "Offer", "Applied"].includes(form.status)}
             />
-            
+
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-card-foreground mb-1.5">Notes</label>
@@ -181,57 +202,10 @@ const ApplicationModal = ({ open, onClose, application, onSave, userId }) => {
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
             </div>
-            
-            {/* Document Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-card-foreground mb-2">Documents</label>
-              <div className="grid grid-cols-2 gap-4">
-                {["resume", "cover_letter"].map((type) => (
-                  <div key={type}>
-                    <label className="block text-sm text-muted-foreground mb-1.5 capitalize">
-                      {type.replace("_", " ")}
-                    </label>
-                    
-                    {/* Show existing document if available */}
-                    {existingDocs[type] && (
-                      <div className="flex items-center justify-between p-2 bg-muted rounded-lg mb-2">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-primary" />
-                          <span className="text-sm truncate">{existingDocs[type].fileName}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDocument(type, existingDocs[type]._id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Upload new document */}
-                    <label className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-input hover:border-primary cursor-pointer transition-colors">
-                      <Upload className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {uploading[type] ? "Uploading..." : `Upload ${type.replace("_", " ")}`}
-                      </span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.txt"
-                        onChange={(e) => handleFileChange(type, e.target.files[0])}
-                        disabled={uploading[type]}
-                      />
-                    </label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PDF, DOC, DOCX, TXT (max 5MB)
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
           
+          </div>
+
+
           <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
             <button
               type="button"
