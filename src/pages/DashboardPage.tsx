@@ -1,11 +1,77 @@
-import { Briefcase, Send, Users, Award, XCircle, TrendingUp, ArrowUpRight } from "lucide-react";
+// frontend/src/pages/DashboardPage.jsx
+import { useState, useEffect } from "react";
+import { Briefcase, Send, Users, Award, XCircle, TrendingUp, ArrowUpRight, Loader2 } from "lucide-react";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
-import { stats, applications } from "@/data/mockData";
+import { dashboardService } from "@/services/dashboardService";
+import { authService } from "@/services/authService";
 
 const DashboardPage = () => {
-  const recentApps = applications.slice(0, 5);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const user = authService.getUser();
+      const userId = user?._id || localStorage.getItem("userId");
+      
+      if (!userId) {
+        throw new Error("User not found");
+      }
+      
+      const response = await dashboardService.getDashboardData(userId);
+      
+      if (response.success) {
+        setDashboardData(response.data);
+      } else {
+        throw new Error(response.message || "Failed to fetch dashboard data");
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-96">
+          <p className="text-destructive mb-4">Error: {error}</p>
+          <button 
+            onClick={fetchDashboardData}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+          >
+            Try Again
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const { stats, recentApplications, quickStats } = dashboardData || {
+    stats: { total: 0, applied: 0, interviews: 0, offers: 0, rejected: 0 },
+    recentApplications: [],
+    quickStats: {}
+  };
 
   return (
     <DashboardLayout>
@@ -35,26 +101,36 @@ const DashboardPage = () => {
               <thead>
                 <tr className="border-b border-border">
                   {["Company", "Position", "Date", "Status"].map((h) => (
-                    <th key={h} className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">{h}</th>
+                    <th key={h} className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {recentApps.map((app) => (
-                  <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-accent-foreground text-sm font-bold">
-                          {app.company[0]}
+                {recentApplications.length > 0 ? (
+                  recentApplications.map((app) => (
+                    <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-accent-foreground text-sm font-bold">
+                            {app.company?.[0] || "?"}
+                          </div>
+                          <span className="font-medium text-sm text-card-foreground">{app.company}</span>
                         </div>
-                        <span className="font-medium text-sm text-card-foreground">{app.company}</span>
-                      </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">{app.position}</td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">{app.appliedDate}</td>
+                      <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                      No applications yet. Start by adding your first application!
                     </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{app.position}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{app.appliedDate}</td>
-                    <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -65,18 +141,26 @@ const DashboardPage = () => {
             <TrendingUp className="h-5 w-5 text-primary" /> Quick Stats
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Response Rate", value: "68%", sub: "+5% this month" },
-              { label: "Avg. Response Time", value: "4.2 days", sub: "Faster than avg" },
-              { label: "Interview Rate", value: "26%", sub: "12 of 47 apps" },
-              { label: "Offer Rate", value: "42%", sub: "5 of 12 interviews" },
-            ].map((s) => (
-              <div key={s.label} className="p-4 rounded-xl bg-muted/50">
-                <p className="text-sm text-muted-foreground">{s.label}</p>
-                <p className="text-xl font-bold text-card-foreground mt-1">{s.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
-              </div>
-            ))}
+            <div className="p-4 rounded-xl bg-muted/50">
+              <p className="text-sm text-muted-foreground">Response Rate</p>
+              <p className="text-xl font-bold text-card-foreground mt-1">{quickStats.responseRate || 0}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Applications with updates</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/50">
+              <p className="text-sm text-muted-foreground">Avg. Response Time</p>
+              <p className="text-xl font-bold text-card-foreground mt-1">{quickStats.avgResponseTime || "0 days"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">From application to update</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/50">
+              <p className="text-sm text-muted-foreground">Interview Rate</p>
+              <p className="text-xl font-bold text-card-foreground mt-1">{quickStats.interviewRate || "0%"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stats.interviews} of {stats.total} applications</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/50">
+              <p className="text-sm text-muted-foreground">Offer Rate</p>
+              <p className="text-xl font-bold text-card-foreground mt-1">{quickStats.offerRate || "0%"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stats.offers} of {stats.interviews} interviews</p>
+            </div>
           </div>
         </div>
       </div>

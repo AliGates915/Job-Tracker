@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, FileText, BarChart3, Bell, Settings, LogOut, Menu, X, Search, ChevronDown, Clock,
+  LayoutDashboard, Briefcase, FileText, BarChart3, Bell, User, Settings, LogOut, Menu, X, Search, ChevronDown, Clock,
 } from "lucide-react";
 import NotificationPanel from "@/components/NotificationPanel";
-import { notifications } from "@/data/mockData";
+import { notificationService } from "@/services/notificationService";
+import { authService } from "@/services/authService";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
@@ -20,7 +21,73 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  
+  // Get user data from auth service
+  useEffect(() => {
+    const userData = authService.getUser();
+    setUser(userData);
+  }, []);
+
+  // Get user ID from user data or localStorage
+  const userId = user?._id || localStorage.getItem("userId") || "69dfd8c8689cf343da30f2cd";
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return "JD";
+    if (user.fullName) {
+      return user.fullName
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user.name) {
+      return user.name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user.email) {
+      return user.email[0].toUpperCase();
+    }
+    return "JD";
+  };
+
+  // Get user display name
+  const getUserName = () => {
+    if (!user) return "John Doe";
+    return user.fullName || user.name || user.email?.split("@")[0] || "User";
+  };
+
+  useEffect(() => {
+    if (userId) {
+      fetchUnreadCount();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userId]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await notificationService.getNotifications(userId, true);
+      if (response.success) {
+        setUnreadCount(response.unreadCount);
+      }
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    window.location.href = "/";
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -63,13 +130,13 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
-          <Link
-            to="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <LogOut className="h-5 w-5" />
             Logout
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -103,7 +170,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
                 )}
               </button>
-              <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+              <NotificationPanel 
+                open={notifOpen} 
+                onClose={() => setNotifOpen(false)}
+                userId={userId}
+                onNotificationCountChange={setUnreadCount}
+              />
             </div>
 
             <div className="relative">
@@ -112,19 +184,30 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                 onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
               >
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
-                  JD
+                  {getUserInitials()}
                 </div>
-                <span className="text-sm font-medium text-foreground hidden sm:block">John Doe</span>
+                <span className="text-sm font-medium text-foreground hidden sm:block">
+                  {getUserName()}
+                </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
               </button>
               {profileOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                   <div className="absolute right-0 top-12 w-48 bg-card rounded-xl card-shadow-lg border border-border z-50 overflow-hidden py-1">
-                    <Link to="/settings" className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Profile</Link>
+                    <div className="px-4 py-3 border-b border-border">
+                      <p className="text-sm font-medium text-foreground">{getUserName()}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{user?.email || ""}</p>
+                    </div>
+                    {/* <Link to="/profile" className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Profile</Link> */}
                     <Link to="/settings" className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Settings</Link>
                     <hr className="my-1 border-border" />
-                    <Link to="/" className="block px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Logout</Link>
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                    >
+                      Logout
+                    </button>
                   </div>
                 </>
               )}

@@ -1,4 +1,3 @@
-// src/services/authService.js
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const authService = {
@@ -17,17 +16,19 @@ export const authService = {
 
     if (data.token) {
       localStorage.setItem('token', data.token);
+      // Store complete user data
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userId', data.user._id || data.user.id);
     }
 
     return data;
   },
 
-  async register(name, email, password) {
+  async register(fullName, email, password) {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ fullName, email, password }),
     });
 
     const data = await response.json();
@@ -39,6 +40,7 @@ export const authService = {
     if (data.token) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userId', data.user._id || data.user.id);
     }
 
     return data;
@@ -47,17 +49,27 @@ export const authService = {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('userId');
   },
 
- getToken() {
+  getToken() {
     const token = localStorage.getItem('token');
-    console.log('Retrieved token:', token ? `${token.substring(0, 20)}...` : 'No token'); // Debug log
+    console.log('Retrieved token:', token ? `${token.substring(0, 20)}...` : 'No token');
     return token;
   },
   
   getUser() {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+    
+    try {
+      const user = JSON.parse(userStr);
+      console.log('Retrieved user:', user);
+      return user;
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      return null;
+    }
   },
   
   isAuthenticated() {
