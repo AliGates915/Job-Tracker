@@ -1,19 +1,27 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, FileText, BarChart3, Bell, User, Settings, LogOut, Menu, X, Search, ChevronDown, Clock,
+  LayoutDashboard, Briefcase, FileText, BarChart3, Bell, User, Settings, LogOut, Menu, Search, ChevronDown, Clock, Users, Trash2,
+  X,
 } from "lucide-react";
 import NotificationPanel from "@/components/NotificationPanel";
 import { notificationService } from "@/services/notificationService";
 import { authService } from "@/services/authService";
 
-const navItems = [
+// Different nav items based on role
+const userNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Applications", icon: Briefcase, path: "/applications" },
   { label: "Documents", icon: FileText, path: "/documents" },
   { label: "Analytics", icon: BarChart3, path: "/analytics" },
   { label: "Reminders", icon: Clock, path: "/reminders" },
   { label: "Settings", icon: Settings, path: "/settings" },
+];
+
+const adminNavItems = [
+  { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { label: "All Applications", icon: Briefcase, path: "/admin/applications" },
+  { label: "All Users", icon: Users, path: "/admin/users" },
 ];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -24,16 +32,15 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [user, setUser] = useState<any>(null);
   
-  // Get user data from auth service
   useEffect(() => {
     const userData = authService.getUser();
     setUser(userData);
   }, []);
 
-  // Get user ID from user data or localStorage
   const userId = user?._id || localStorage.getItem("userId") || "69dfd8c8689cf343da30f2cd";
+  const isAdmin = user?.role === "admin";
+  const navItems = isAdmin ? adminNavItems : userNavItems;
 
-  // Get user initials for avatar
   const getUserInitials = () => {
     if (!user) return "JD";
     if (user.fullName) {
@@ -58,7 +65,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     return "JD";
   };
 
-  // Get user display name
   const getUserName = () => {
     if (!user) return "John Doe";
     return user.fullName || user.name || user.email?.split("@")[0] || "User";
@@ -67,7 +73,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (userId) {
       fetchUnreadCount();
-      // Poll for new notifications every 30 seconds
       const interval = setInterval(fetchUnreadCount, 30000);
       return () => clearInterval(interval);
     }
@@ -103,6 +108,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             <Briefcase className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
           <span className="font-semibold text-sidebar-accent-foreground text-lg">JobTracker</span>
+          {isAdmin && (
+            <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">Admin</span>
+          )}
           <button className="ml-auto lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5 text-sidebar-foreground" />
           </button>
@@ -141,84 +149,100 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-20">
-          <button className="lg:hidden p-2 rounded-lg hover:bg-muted" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-5 w-5 text-foreground" />
-          </button>
+<div className="flex-1 flex flex-col min-w-0">
+  {/* Top bar - Full width */}
+  <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 w-full">
+    <div className="flex items-center gap-4">
+      {/* Mobile menu button */}
+      <button className="lg:hidden p-2 rounded-lg hover:bg-muted" onClick={() => setSidebarOpen(true)}>
+        <Menu className="h-5 w-5 text-foreground" />
+      </button>
 
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                className="p-2 rounded-lg hover:bg-muted relative transition-colors"
-                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
-              >
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
-                )}
-              </button>
-              <NotificationPanel 
-                open={notifOpen} 
-                onClose={() => setNotifOpen(false)}
-                userId={userId}
-                onNotificationCountChange={setUnreadCount}
-              />
-            </div>
-
-            <div className="relative">
-              <button
-                className="flex items-center gap-2 p-1.5 pr-3 rounded-lg hover:bg-muted transition-colors"
-                onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
-              >
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
-                  {getUserInitials()}
-                </div>
-                <span className="text-sm font-medium text-foreground hidden sm:block">
-                  {getUserName()}
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
-              </button>
-              {profileOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 top-12 w-48 bg-card rounded-xl card-shadow-lg border border-border z-50 overflow-hidden py-1">
-                    <div className="px-4 py-3 border-b border-border">
-                      <p className="text-sm font-medium text-foreground">{getUserName()}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{user?.email || ""}</p>
-                    </div>
-                    {/* <Link to="/profile" className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Profile</Link> */}
-                    <Link to="/settings" className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setProfileOpen(false)}>Settings</Link>
-                    <hr className="my-1 border-border" />
-                    <button 
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          {children}
-        </main>
+      {/* Search bar - full width on mobile, limited on desktop */}
+      <div className="w-full sm:w-80 md:w-96">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
       </div>
+    </div>
+
+    {/* Right side actions */}
+    <div className="flex items-center gap-2">
+      {/* Notifications */}
+      <div className="relative">
+        <button
+          className="p-2 rounded-lg hover:bg-muted relative transition-colors"
+          onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
+        >
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
+          )}
+        </button>
+        <NotificationPanel 
+          open={notifOpen} 
+          onClose={() => setNotifOpen(false)}
+          userId={userId}
+          onNotificationCountChange={setUnreadCount}
+        />
+      </div>
+
+      {/* Profile dropdown */}
+      <div className="relative">
+        <button
+          className="flex items-center gap-2 p-1.5 pr-3 rounded-lg hover:bg-muted transition-colors"
+          onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
+        >
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
+            {getUserInitials()}
+          </div>
+          <span className="text-sm font-medium text-foreground hidden sm:block">
+            {getUserName()}
+          </span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+        </button>
+        
+        {profileOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+            <div className="absolute right-0 top-12 w-48 bg-card rounded-xl card-shadow-lg border border-border z-50 overflow-hidden py-1">
+              <div className="px-4 py-3 border-b border-border">
+                <p className="text-sm font-medium text-foreground">{getUserName()}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{user?.email || ""}</p>
+                {isAdmin && (
+                  <p className="text-xs text-primary mt-1">Administrator</p>
+                )}
+              </div>
+              <Link 
+                to="/settings" 
+                className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" 
+                onClick={() => setProfileOpen(false)}
+              >
+                Settings
+              </Link>
+              <hr className="my-1 border-border" />
+              <button 
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  </header>
+
+  <main className="flex-1 p-4 lg:p-6 overflow-auto">
+    {children}
+  </main>
+</div>
     </div>
   );
 };
