@@ -115,7 +115,16 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             disabled={uploading || !selectedFile}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {uploading ? "Uploading..." : <><Upload className="h-4 w-4" /> Upload</>}
+            {uploading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent"></div>
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" /> Upload
+              </>
+            )}
           </button>
         </div>
       </div>
