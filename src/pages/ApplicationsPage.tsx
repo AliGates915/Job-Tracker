@@ -5,9 +5,14 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
 import ApplicationModal from "@/components/ApplicationModal";
 import { applicationService } from "@/services/applicationService";
+import { NotesPopover } from "@/components/NotesPopover";
 
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
+  const [notesModal, setNotesModal] = useState<{ open: boolean; notes: string }>({
+  open: false,
+  notes: "",
+});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -142,7 +147,7 @@ const ApplicationsPage = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {["Company", "Position", "Applied", "Status", "Contact", "Link", "Actions"].map((h) => (
+                  {["Company", "Position", "Applied", "Status", "Notes", "Link", "Actions"].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">{h}</th>
                   ))}
                 </tr>
@@ -166,7 +171,14 @@ const ApplicationsPage = () => {
                       <td className="px-6 py-4 text-sm text-muted-foreground">{app.position}</td>
                       <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">{new Date(app.appliedDate).toLocaleDateString()}</td>
                       <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{app.contactPerson}</td>
+                      <td className="px-6 py-4">
+  <NotesPopover
+    notes={app.notes}
+    open={notesModal.open && notesModal.notes === app.notes}
+    onOpen={() => setNotesModal({ open: true, notes: app.notes })}
+    onClose={() => setNotesModal({ open: false, notes: "" })}
+  />
+</td>
                       <td className="px-6 py-4">
                         {app.jobLink && (
                           <a href={app.jobLink} target="_blank" rel="noreferrer" className="text-primary hover:underline">
